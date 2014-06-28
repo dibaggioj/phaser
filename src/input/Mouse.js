@@ -17,7 +17,7 @@ Phaser.Mouse = function (game) {
     * @property {Phaser.Game} game - A reference to the currently running game.
     */
     this.game = game;
-    
+
     /**
     * @property {Object} callbackContext - The context under which callbacks are called.
     */
@@ -27,16 +27,26 @@ Phaser.Mouse = function (game) {
     * @property {function} mouseDownCallback - A callback that can be fired when the mouse is pressed down.
     */
     this.mouseDownCallback = null;
-    
+
     /**
     * @property {function} mouseMoveCallback - A callback that can be fired when the mouse is moved while pressed down.
     */
     this.mouseMoveCallback = null;
-    
+
     /**
     * @property {function} mouseUpCallback - A callback that can be fired when the mouse is released from a pressed down state.
     */
     this.mouseUpCallback = null;
+
+    /**
+    * @property {function} mouseOutCallback - A callback that can be fired when the mouse is no longer over the game canvas.
+    */
+    this.mouseOutCallback = null;
+
+    /**
+    * @property {function} mouseOverCallback - A callback that can be fired when the mouse enters the game canvas (usually after a mouseout).
+    */
+    this.mouseOverCallback = null;
 
     /**
     * @property {boolean} capture - If true the DOM mouse events will have event.preventDefault applied to them, if false they will propogate fully.
@@ -60,6 +70,12 @@ Phaser.Mouse = function (game) {
     * @default
     */
     this.locked = false;
+
+    /**
+    * @property {boolean} stopOnGameOut - If true Pointer.stop will be called if the mouse leaves the game canvas.
+    * @default
+    */
+    this.stopOnGameOut = false;
 
     /**
     * @property {Phaser.Signal} pointerLock - This event is dispatched when the browser enters or leaves pointer lock state.
@@ -90,6 +106,18 @@ Phaser.Mouse = function (game) {
     * @private
     */
     this._onMouseUp = null;
+
+    /**
+    * @property {function} _onMouseOut - Internal event handler reference.
+    * @private
+    */
+    this._onMouseOut = null;
+
+    /**
+    * @property {function} _onMouseOver - Internal event handler reference.
+    * @private
+    */
+    this._onMouseOver = null;
 
 };
 
@@ -125,13 +153,19 @@ Phaser.Mouse.prototype = {
     */
     start: function () {
 
-        var _this = this;
-
         if (this.game.device.android && this.game.device.chrome === false)
         {
             //  Android stock browser fires mouse events even if you preventDefault on the touchStart, so ...
             return;
         }
+
+        if (this._onMouseDown !== null)
+        {
+            //  Avoid setting multiple listeners
+            return;
+        }
+
+        var _this = this;
 
         this._onMouseDown = function (event) {
             return _this.onMouseDown(event);
@@ -145,9 +179,19 @@ Phaser.Mouse.prototype = {
             return _this.onMouseUp(event);
         };
 
-        document.addEventListener('mousedown', this._onMouseDown, true);
-        document.addEventListener('mousemove', this._onMouseMove, true);
-        document.addEventListener('mouseup', this._onMouseUp, true);
+        this._onMouseOut = function (event) {
+            return _this.onMouseOut(event);
+        };
+
+        this._onMouseOver = function (event) {
+            return _this.onMouseOver(event);
+        };
+
+        this.game.canvas.addEventListener('mousedown', this._onMouseDown, true);
+        this.game.canvas.addEventListener('mousemove', this._onMouseMove, true);
+        this.game.canvas.addEventListener('mouseup', this._onMouseUp, true);
+        this.game.canvas.addEventListener('mouseover', this._onMouseOver, true);
+        this.game.canvas.addEventListener('mouseout', this._onMouseOut, true);
 
     },
 
@@ -165,7 +209,7 @@ Phaser.Mouse.prototype = {
             event.preventDefault();
         }
 
-        this.button = event.which;
+        this.button = event.button;
 
         if (this.mouseDownCallback)
         {
@@ -246,6 +290,71 @@ Phaser.Mouse.prototype = {
     },
 
     /**
+    * The internal method that handles the mouse out event from the browser.
+    *
+    * @method Phaser.Mouse#onMouseOut
+    * @param {MouseEvent} event - The native event from the browser. This gets stored in Mouse.event.
+    */
+    onMouseOut: function (event) {
+
+        this.event = event;
+
+        if (this.capture)
+        {
+            event.preventDefault();
+        }
+
+        if (this.mouseOutCallback)
+        {
+            this.mouseOutCallback.call(this.callbackContext, event);
+        }
+
+        if (this.game.input.disabled || this.disabled)
+        {
+            return;
+        }
+
+        this.game.input.mousePointer.withinGame = false;
+
+        if (this.stopOnGameOut)
+        {
+            event['identifier'] = 0;
+
+            this.game.input.mousePointer.stop(event);
+        }
+
+    },
+
+    /**
+    * The internal method that handles the mouse over event from the browser.
+    *
+    * @method Phaser.Mouse#onMouseOver
+    * @param {MouseEvent} event - The native event from the browser. This gets stored in Mouse.event.
+    */
+    onMouseOver: function (event) {
+
+        this.event = event;
+
+        if (this.capture)
+        {
+            event.preventDefault();
+        }
+
+        if (this.mouseOverCallback)
+        {
+            this.mouseOverCallback.call(this.callbackContext, event);
+        }
+
+        if (this.game.input.disabled || this.disabled)
+        {
+            return;
+        }
+
+        this.game.input.mousePointer.withinGame = true;
+
+    },
+
+    /**
     * If the browser supports it you can request that the pointer be locked to the browser window.
     * This is classically known as 'FPS controls', where the pointer can't leave the browser until the user presses an exit key.
     * If the browser successfully enters a locked state the event Phaser.Mouse.pointerLock will be dispatched and the first parameter will be 'true'.
@@ -255,7 +364,7 @@ Phaser.Mouse.prototype = {
 
         if (this.game.device.pointerLock)
         {
-            var element = this.game.stage.canvas;
+            var element = this.game.canvas;
 
             element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
 
@@ -281,7 +390,7 @@ Phaser.Mouse.prototype = {
     */
     pointerLockChange: function (event) {
 
-        var element = this.game.stage.canvas;
+        var element = this.game.canvas;
 
         if (document.pointerLockElement === element || document.mozPointerLockElement === element || document.webkitPointerLockElement === element)
         {
@@ -320,9 +429,11 @@ Phaser.Mouse.prototype = {
     */
     stop: function () {
 
-        document.removeEventListener('mousedown', this._onMouseDown, true);
-        document.removeEventListener('mousemove', this._onMouseMove, true);
-        document.removeEventListener('mouseup', this._onMouseUp, true);
+        this.game.canvas.removeEventListener('mousedown', this._onMouseDown, true);
+        this.game.canvas.removeEventListener('mousemove', this._onMouseMove, true);
+        this.game.canvas.removeEventListener('mouseup', this._onMouseUp, true);
+        this.game.canvas.removeEventListener('mouseover', this._onMouseOver, true);
+        this.game.canvas.removeEventListener('mouseout', this._onMouseOut, true);
 
     }
 

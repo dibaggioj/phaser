@@ -11,7 +11,115 @@
 * @static
 */
 Phaser.Utils = {
-    
+
+    /**
+     * Transposes the elements of the given Array.
+     *
+     * @method Phaser.Utils.transposeArray
+     * @param {array} array - The array to transpose.
+     * @return {array} The transposed array.
+     */
+    transposeArray: function (array) {
+
+        var result = new Array(array[0].length);
+
+        for (var i = 0; i < array[0].length; i++)
+        {
+            result[i] = new Array(array.length - 1);
+
+            for (var j = array.length - 1; j > -1; j--)
+            {
+                result[i][j] = array[j][i];
+            }
+        }
+
+        return result;
+
+    },
+
+    /**
+     * Rotates the given array.
+     * Based on the routine from http://jsfiddle.net/MrPolywhirl/NH42z/
+     *
+     * @method Phaser.Utils.rotateArray
+     * @param {array} matrix - The array to rotate.
+     * @param {number|string} direction - The amount to rotate. Either a number: 90, -90, 270, -270, 180 or a string: 'rotateLeft', 'rotateRight' or 'rotate180'
+     * @return {array} The rotated array
+     */
+    rotateArray: function (matrix, direction) {
+
+        if (typeof direction !== 'string')
+        {
+            direction = ((direction % 360) + 360) % 360;
+        }
+
+        if (direction === 90 || direction === -270 || direction === 'rotateLeft')
+        {
+            matrix = Phaser.Utils.transposeArray(matrix);
+            matrix = matrix.reverse();
+        }
+        else if (direction === -90 || direction === 270 || direction === 'rotateRight')
+        {
+            matrix = matrix.reverse();
+            matrix = Phaser.Utils.transposeArray(matrix);
+        }
+        else if (Math.abs(direction) === 180 || direction === 'rotate180')
+        {
+            for (var i = 0; i < matrix.length; i++)
+            {
+                matrix[i].reverse();
+            }
+
+            matrix = matrix.reverse();
+        }
+
+        return matrix;
+
+    },
+
+    /**
+    * Get a unit dimension from a string.
+    *
+    * @method Phaser.Utils.parseDimension
+    * @param {string|number} size - The size to parse.
+    * @param {number} dimension - The window dimension to check.
+    * @return {number} The parsed dimension.
+    */
+    parseDimension: function (size, dimension) {
+
+        var f = 0;
+        var px = 0;
+
+        if (typeof size === 'string')
+        {
+            //  %?
+            if (size.substr(-1) === '%')
+            {
+                f = parseInt(size, 10) / 100;
+
+                if (dimension === 0)
+                {
+                    px = window.innerWidth * f;
+                }
+                else
+                {
+                    px = window.innerHeight * f;
+                }
+            }
+            else
+            {
+                px = parseInt(size, 10);
+            }
+        }
+        else
+        {
+            px = size;
+        }
+
+        return px;
+
+    },
+
     /**
     * A standard Fisher-Yates Array shuffle implementation.
     * @method Phaser.Utils.shuffle
@@ -29,7 +137,7 @@ Phaser.Utils = {
         }
 
         return array;
-        
+
     },
 
     /**
@@ -37,7 +145,7 @@ Phaser.Utils = {
     * pad = the string to pad it out with (defaults to a space)
     * dir = 1 (left), 2 (right), 3 (both)
     * @method Phaser.Utils.pad
-    * @param {string} str - The target string. 
+    * @param {string} str - The target string.
     * @param {number} len - The number of characters to be added.
     * @param {number} pad - The string to pad it out with (defaults to a space).
     * @param {number} [dir=3] The direction dir = 1 (left), 2 (right), 3 (both).
@@ -56,17 +164,17 @@ Phaser.Utils = {
             switch (dir)
             {
                 case 1:
-                    str = Array(len + 1 - str.length).join(pad) + str;
+                    str = new Array(len + 1 - str.length).join(pad) + str;
                     break;
 
                 case 3:
                     var right = Math.ceil((padlen = len - str.length) / 2);
                     var left = padlen - right;
-                    str = Array(left+1).join(pad) + str + Array(right+1).join(pad);
+                    str = new Array(left+1).join(pad) + str + new Array(right+1).join(pad);
                     break;
 
                 default:
-                    str = str + Array(len + 1 - str.length).join(pad);
+                    str = str + new Array(len + 1 - str.length).join(pad);
                     break;
             }
         }
@@ -97,7 +205,7 @@ Phaser.Utils = {
         // the "constructor" property of certain host objects, ie. |window.location|
         // https://bugzilla.mozilla.org/show_bug.cgi?id=814622
         try {
-            if (obj.constructor && !hasOwn.call(obj.constructor.prototype, "isPrototypeOf"))
+            if (obj.constructor && !({}).hasOwnProperty.call(obj.constructor.prototype, "isPrototypeOf"))
             {
                 return false;
             }
@@ -109,13 +217,6 @@ Phaser.Utils = {
         // |obj| is a plain object, created by {} or constructed with new Object
         return true;
     },
-
-
-    //  deep, target, objects to copy to the target object
-    //  This is a slightly modified version of {@link http://api.jquery.com/jQuery.extend/|jQuery.extend}
-    //  deep (boolean)
-    //  target (object to add to)
-    //  objects ... (objects to recurse and copy from)
 
     /**
     * This is a slightly modified version of http://api.jquery.com/jQuery.extend/
@@ -148,7 +249,7 @@ Phaser.Utils = {
             --i;
         }
 
-        for ( ; i < length; i++ )
+        for (; i < length; i++)
         {
             // Only deal with non-null/undefined values
             if ((options = arguments[i]) != null)
@@ -197,19 +298,12 @@ Phaser.Utils = {
 
 };
 
-function HEXtoRGB(hex) {
-    return [(hex >> 16 & 0xFF) / 255, ( hex >> 8 & 0xFF) / 255, (hex & 0xFF)/ 255];
-}
-
-PIXI.hex2rgb = function hex2rgb(hex) {
-    return [(hex >> 16 & 0xFF) / 255, ( hex >> 8 & 0xFF) / 255, (hex & 0xFF)/ 255];
-};
-
 /**
 * A polyfill for Function.prototype.bind
 */
 if (typeof Function.prototype.bind != 'function') {
 
+    /* jshint freeze: false */
     Function.prototype.bind = (function () {
 
         var slice = Array.prototype.slice;
@@ -217,26 +311,29 @@ if (typeof Function.prototype.bind != 'function') {
         return function (thisArg) {
 
             var target = this, boundArgs = slice.call(arguments, 1);
- 
+
             if (typeof target != 'function')
             {
                 throw new TypeError();
             }
- 
+
             function bound() {
                 var args = boundArgs.concat(slice.call(arguments));
                 target.apply(this instanceof bound ? this : thisArg, args);
             }
- 
+
             bound.prototype = (function F(proto) {
-                proto && (F.prototype = proto);
+                if (proto)
+                {
+                    F.prototype = proto;
+                }
 
                 if (!(this instanceof F))
                 {
                     return new F;
                 }
             })(target.prototype);
- 
+
             return bound;
         };
     })();
@@ -245,9 +342,99 @@ if (typeof Function.prototype.bind != 'function') {
 /**
 * A polyfill for Array.isArray
 */
-if (!Array.isArray) {
-  Array.isArray = function (arg) {
-    return Object.prototype.toString.call(arg) == '[object Array]';
-  };
+if (!Array.isArray)
+{
+    Array.isArray = function (arg)
+    {
+        return Object.prototype.toString.call(arg) == '[object Array]';
+    };
 }
 
+/**
+* A polyfill for Array.forEach
+* https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach
+*/
+if (!Array.prototype.forEach)
+{
+    Array.prototype.forEach = function(fun /*, thisArg */)
+    {
+        "use strict";
+
+        if (this === void 0 || this === null)
+        {
+            throw new TypeError();
+        }
+
+        var t = Object(this);
+        var len = t.length >>> 0;
+
+        if (typeof fun !== "function")
+        {
+            throw new TypeError();
+        }
+
+        var thisArg = arguments.length >= 2 ? arguments[1] : void 0;
+
+        for (var i = 0; i < len; i++)
+        {
+            if (i in t)
+            {
+                fun.call(thisArg, t[i], i, t);
+            }
+        }
+    };
+}
+
+/**
+* Low-budget Float32Array knock-off, suitable for use with P2.js in IE9
+* Source: http://www.html5gamedevs.com/topic/5988-phaser-12-ie9/
+* Cameron Foale (http://www.kibibu.com)
+*/
+if (typeof window.Uint32Array !== "function")
+{
+    var CheapArray = function(type)
+    {
+        var proto = new Array(); // jshint ignore:line
+
+        window[type] = function(arg) {
+
+            if (typeof(arg) === "number")
+            {
+                Array.call(this, arg);
+                this.length = arg;
+
+                for (var i = 0; i < this.length; i++)
+                {
+                    this[i] = 0;
+                }
+            }
+            else
+            {
+                Array.call(this, arg.length);
+
+                this.length = arg.length;
+
+                for (var i = 0; i < this.length; i++)
+                {
+                    this[i] = arg[i];
+                }
+            }
+        };
+
+        window[type].prototype = proto;
+        window[type].constructor = window[type];
+    };
+
+    CheapArray('Uint32Array'); // jshint ignore:line
+    CheapArray('Int16Array');  // jshint ignore:line
+}
+
+/**
+ * Also fix for the absent console in IE9
+ */
+if (!window.console)
+{
+    window.console = {};
+    window.console.log = window.console.assert = function(){};
+    window.console.warn = window.console.assert = function(){};
+}

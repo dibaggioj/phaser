@@ -60,12 +60,12 @@ Phaser.Line.prototype = {
     * @method Phaser.Line#fromSprite
     * @param {Phaser.Sprite} startSprite - The coordinates of this Sprite will be set to the Line.start point.
     * @param {Phaser.Sprite} endSprite - The coordinates of this Sprite will be set to the Line.start point.
-    * @param {boolean} [useCenter=true] - If true it will use startSprite.center.x, if false startSprite.x.
+    * @param {boolean} [useCenter=false] - If true it will use startSprite.center.x, if false startSprite.x. Note that Sprites don't have a center property by default, so only enable if you've over-ridden your Sprite with a custom class.
     * @return {Phaser.Line} This line object
     */
     fromSprite: function (startSprite, endSprite, useCenter) {
 
-        if (typeof useCenter === 'undefined') { useCenter = true; }
+        if (typeof useCenter === 'undefined') { useCenter = false; }
 
         if (useCenter)
         {
@@ -104,7 +104,7 @@ Phaser.Line.prototype = {
     */
     pointOnLine: function (x, y) {
 
-        return ((x - this.start.x) * (this.end.y - this.end.y) === (this.end.x - this.start.x) * (y - this.end.y));
+        return ((x - this.start.x) * (this.end.y - this.start.y) === (this.end.x - this.start.x) * (y - this.start.y));
 
     },
 
@@ -123,6 +123,64 @@ Phaser.Line.prototype = {
         var yMax = Math.max(this.start.y, this.end.y);
 
         return (this.pointOnLine(x, y) && (x >= xMin && x <= xMax) && (y >= yMin && y <= yMax));
+
+    },
+
+    /**
+    * Using Bresenham's line algorithm this will return an array of all coordinates on this line.
+    * The start and end points are rounded before this runs as the algorithm works on integers.
+    *
+    * @method Phaser.Line#coordinatesOnLine
+    * @param {number} [stepRate=1] - How many steps will we return? 1 = every coordinate on the line, 2 = every other coordinate, etc.
+    * @param {array} [results] - The array to store the results in. If not provided a new one will be generated.
+    * @return {array} An array of coordinates.
+    */
+    coordinatesOnLine: function (stepRate, results) {
+
+        if (typeof stepRate === 'undefined') { stepRate = 1; }
+        if (typeof results === 'undefined') { results = []; }
+
+        var x1 = Math.round(this.start.x);
+        var y1 = Math.round(this.start.y);
+        var x2 = Math.round(this.end.x);
+        var y2 = Math.round(this.end.y);
+
+        var dx = Math.abs(x2 - x1);
+        var dy = Math.abs(y2 - y1);
+        var sx = (x1 < x2) ? 1 : -1;
+        var sy = (y1 < y2) ? 1 : -1;
+        var err = dx - dy;
+
+        results.push([x1, y1]);
+
+        var i = 1;
+
+        while (!((x1 == x2) && (y1 == y2)))
+        {
+            var e2 = err << 1;
+
+            if (e2 > -dy)
+            {
+                err -= dy;
+                x1 += sx;
+            }
+
+            if (e2 < dx)
+            {
+                err += dx;
+                y1 += sy;
+            }
+
+            if (i % stepRate === 0)
+            {
+                results.push([x1, y1]);
+            }
+
+            i++;
+
+        }
+
+        return results;
 
     }
 
@@ -149,7 +207,7 @@ Object.defineProperty(Phaser.Line.prototype, "length", {
 Object.defineProperty(Phaser.Line.prototype, "angle", {
 
     get: function () {
-        return Math.atan2(this.end.x - this.start.x, this.end.y - this.start.y);
+        return Math.atan2(this.end.y - this.start.y, this.end.x - this.start.x);
     }
 
 });
@@ -176,6 +234,110 @@ Object.defineProperty(Phaser.Line.prototype, "perpSlope", {
 
     get: function () {
         return -((this.end.x - this.start.x) / (this.end.y - this.start.y));
+    }
+
+});
+
+/**
+* @name Phaser.Line#x
+* @property {number} x - Gets the x coordinate of the top left of the bounds around this line.
+* @readonly
+*/
+Object.defineProperty(Phaser.Line.prototype, "x", {
+
+    get: function () {
+        return Math.min(this.start.x, this.end.x);
+    }
+
+});
+
+/**
+* @name Phaser.Line#y
+* @property {number} y - Gets the y coordinate of the top left of the bounds around this line.
+* @readonly
+*/
+Object.defineProperty(Phaser.Line.prototype, "y", {
+
+    get: function () {
+        return Math.min(this.start.y, this.end.y);
+    }
+
+});
+
+/**
+* @name Phaser.Line#left
+* @property {number} left - Gets the left-most point of this line.
+* @readonly
+*/
+Object.defineProperty(Phaser.Line.prototype, "left", {
+
+    get: function () {
+        return Math.min(this.start.x, this.end.x);
+    }
+
+});
+
+/**
+* @name Phaser.Line#right
+* @property {number} right - Gets the right-most point of this line.
+* @readonly
+*/
+Object.defineProperty(Phaser.Line.prototype, "right", {
+
+    get: function () {
+        return Math.max(this.start.x, this.end.x);
+    }
+
+});
+
+/**
+* @name Phaser.Line#top
+* @property {number} top - Gets the top-most point of this line.
+* @readonly
+*/
+Object.defineProperty(Phaser.Line.prototype, "top", {
+
+    get: function () {
+        return Math.min(this.start.y, this.end.y);
+    }
+
+});
+
+/**
+* @name Phaser.Line#bottom
+* @property {number} bottom - Gets the bottom-most point of this line.
+* @readonly
+*/
+Object.defineProperty(Phaser.Line.prototype, "bottom", {
+
+    get: function () {
+        return Math.max(this.start.y, this.end.y);
+    }
+
+});
+
+/**
+* @name Phaser.Line#width
+* @property {number} width - Gets the width of this bounds of this line.
+* @readonly
+*/
+Object.defineProperty(Phaser.Line.prototype, "width", {
+
+    get: function () {
+        return Math.abs(this.start.x - this.end.x);
+    }
+
+});
+
+/**
+* @name Phaser.Line#height
+* @property {number} height - Gets the height of this bounds of this line.
+* @readonly
+*/
+Object.defineProperty(Phaser.Line.prototype, "height", {
+
+    get: function () {
+        return Math.abs(this.start.y - this.end.y);
     }
 
 });
@@ -215,26 +377,13 @@ Phaser.Line.intersectsPoints = function (a, b, e, f, asSegment, result) {
 
     result.x = ((b1 * c2) - (b2 * c1)) / denom;
     result.y = ((a2 * c1) - (a1 * c2)) / denom;
- 
+
     if (asSegment)
     {
-        if (Math.pow((result.x - b.x) + (result.y - b.y), 2) > Math.pow((a.x - b.x) + (a.y - b.y), 2))
-        {
-            return null;
-        }
-
-        if (Math.pow((result.x - a.x) + (result.y - a.y), 2) > Math.pow((a.x - b.x) + (a.y - b.y), 2))
-        {
-            return null;
-        }
-
-        if (Math.pow((result.x - f.x) + (result.y - f.y), 2) > Math.pow((e.x - f.x) + (e.y - f.y), 2))
-        {
-            return null;
-        }
-
-        if (Math.pow((result.x - e.x) + (result.y - e.y), 2) > Math.pow((e.x - f.x) + (e.y - f.y), 2))
-        {
+        if ( result.x < Math.min(a.x, b.x) || result.x > Math.max(a.x, b.x) ||
+             result.y < Math.min(a.y, b.y) || result.y > Math.max(a.y, b.y) ||
+             result.x < Math.min(e.x, f.x) || result.x > Math.max(e.x, f.x) ||
+             result.y < Math.min(e.y, f.y) || result.y > Math.max(e.y, f.y) ) {
             return null;
         }
     }

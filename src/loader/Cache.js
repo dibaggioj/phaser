@@ -50,6 +50,18 @@ Phaser.Cache = function (game) {
     this._text = {};
 
     /**
+    * @property {object} _text - Text key-value container.
+    * @private
+    */
+    this._json = {};
+
+    /**
+    * @property {object} _physics - Physics data key-value container.
+    * @private
+    */
+    this._physics = {};
+
+    /**
     * @property {object} _tilemaps - Tilemap key-value container.
     * @private
     */
@@ -67,6 +79,12 @@ Phaser.Cache = function (game) {
     */
     this._bitmapDatas = {};
 
+    /**
+    * @property {object} _bitmapFont - BitmapFont key-value container.
+    * @private
+    */
+    this._bitmapFont = {};
+
     this.addDefaultImage();
     this.addMissingImage();
 
@@ -75,12 +93,96 @@ Phaser.Cache = function (game) {
     */
     this.onSoundUnlock = new Phaser.Signal();
 
+    /**
+    * @property {array} _cacheMap - Const to cache object look-up array.
+    */
+    this._cacheMap = [];
+
+    this._cacheMap[Phaser.Cache.CANVAS] = this._canvases;
+    this._cacheMap[Phaser.Cache.IMAGE] = this._images;
+    this._cacheMap[Phaser.Cache.TEXTURE] = this._textures;
+    this._cacheMap[Phaser.Cache.SOUND] = this._sounds;
+    this._cacheMap[Phaser.Cache.TEXT] = this._text;
+    this._cacheMap[Phaser.Cache.PHYSICS] = this._physics;
+    this._cacheMap[Phaser.Cache.TILEMAP] = this._tilemaps;
+    this._cacheMap[Phaser.Cache.BINARY] = this._binary;
+    this._cacheMap[Phaser.Cache.BITMAPDATA] = this._bitmapDatas;
+    this._cacheMap[Phaser.Cache.BITMAPFONT] = this._bitmapFont;
+    this._cacheMap[Phaser.Cache.JSON] = this._json;
+
 };
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.CANVAS = 1;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.IMAGE = 2;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.TEXTURE = 3;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.SOUND = 4;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.TEXT = 5;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.PHYSICS = 6;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.TILEMAP = 7;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.BINARY = 8;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.BITMAPDATA = 9;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.BITMAPFONT = 10;
+
+/**
+* @constant
+* @type {number}
+*/
+Phaser.Cache.JSON = 11;
 
 Phaser.Cache.prototype = {
 
     /**
     * Add a new canvas object in to the cache.
+    *
     * @method Phaser.Cache#addCanvas
     * @param {string} key - Asset key for this canvas.
     * @param {HTMLCanvasElement} canvas - Canvas DOM element.
@@ -94,6 +196,7 @@ Phaser.Cache.prototype = {
 
     /**
     * Add a binary object in to the cache.
+    *
     * @method Phaser.Cache#addBinary
     * @param {string} key - Asset key for this binary data.
     * @param {object} binaryData - The binary object to be addded to the cache.
@@ -106,6 +209,7 @@ Phaser.Cache.prototype = {
 
     /**
     * Add a BitmapData object in to the cache.
+    *
     * @method Phaser.Cache#addBitmapData
     * @param {string} key - Asset key for this BitmapData.
     * @param {Phaser.BitmapData} bitmapData - The BitmapData object to be addded to the cache.
@@ -159,7 +263,7 @@ Phaser.Cache.prototype = {
     },
 
     /**
-    * Add a new tilemap.
+    * Add a new tilemap to the Cache.
     *
     * @method Phaser.Cache#addTilemap
     * @param {string} key - The unique key by which you will reference this object.
@@ -174,7 +278,7 @@ Phaser.Cache.prototype = {
     },
 
     /**
-    * Add a new texture atlas.
+    * Add a new texture atlas to the Cache.
     *
     * @method Phaser.Cache#addTextureAtlas
     * @param {string} key - The unique key by which you will reference this object.
@@ -206,23 +310,39 @@ Phaser.Cache.prototype = {
     },
 
     /**
-    * Add a new Bitmap Font.
+    * Add a new Bitmap Font to the Cache.
     *
     * @method Phaser.Cache#addBitmapFont
     * @param {string} key - The unique key by which you will reference this object.
     * @param {string} url - URL of this font xml file.
     * @param {object} data - Extra font data.
-    * @param xmlData {object} Texture atlas frames data.
+    * @param {object} xmlData - Texture atlas frames data.
+    * @param {number} [xSpacing=0] - If you'd like to add additional horizontal spacing between the characters then set the pixel value here.
+    * @param {number} [ySpacing=0] - If you'd like to add additional vertical spacing between the lines then set the pixel value here.
     */
-    addBitmapFont: function (key, url, data, xmlData) {
+    addBitmapFont: function (key, url, data, xmlData, xSpacing, ySpacing) {
 
         this._images[key] = { url: url, data: data, spriteSheet: true };
 
         PIXI.BaseTextureCache[key] = new PIXI.BaseTexture(data);
         PIXI.TextureCache[key] = new PIXI.Texture(PIXI.BaseTextureCache[key]);
 
-        Phaser.LoaderParser.bitmapFont(this.game, xmlData, key);
-        // this._images[key].frameData = Phaser.AnimationParser.XMLData(this.game, xmlData, key);
+        Phaser.LoaderParser.bitmapFont(this.game, xmlData, key, xSpacing, ySpacing);
+
+    },
+
+    /**
+    * Add a new physics data object to the Cache.
+    *
+    * @method Phaser.Cache#addTilemap
+    * @param {string} key - The unique key by which you will reference this object.
+    * @param {string} url - URL of the physics json data.
+    * @param {object} JSONData - The physics data object (a JSON file).
+    * @param {number} format - The format of the physics data.
+    */
+    addPhysicsData: function (key, url, JSONData, format) {
+
+        this._physics[key] = { url: url, data: JSONData, format: format };
 
     },
 
@@ -230,6 +350,7 @@ Phaser.Cache.prototype = {
     * Adds a default image to be used in special cases such as WebGL Filters. Is mapped to the key __default.
     *
     * @method Phaser.Cache#addDefaultImage
+    * @protected
     */
     addDefaultImage: function () {
 
@@ -248,6 +369,7 @@ Phaser.Cache.prototype = {
     * Adds an image to be used when a key is wrong / missing. Is mapped to the key __missing.
     *
     * @method Phaser.Cache#addMissingImage
+    * @protected
     */
     addMissingImage: function () {
 
@@ -266,16 +388,27 @@ Phaser.Cache.prototype = {
     * Add a new text data.
     *
     * @method Phaser.Cache#addText
-    * @param {string} key - Asset key for the text data. 
+    * @param {string} key - Asset key for the text data.
     * @param {string} url - URL of this text data file.
     * @param {object} data - Extra text data.
     */
     addText: function (key, url, data) {
 
-        this._text[key] = {
-            url: url,
-            data: data
-        };
+        this._text[key] = { url: url, data: data };
+
+    },
+
+    /**
+    * Add a new json object into the cache.
+    *
+    * @method Phaser.Cache#addJSON
+    * @param {string} key - Asset key for the text data.
+    * @param {string} url - URL of this text data file.
+    * @param {object} data - Extra text data.
+    */
+    addJSON: function (key, url, data) {
+
+        this._json[key] = { url: url, data: data };
 
     },
 
@@ -369,7 +502,7 @@ Phaser.Cache.prototype = {
     * @param {string} key - Asset key for the sound.
     */
     updateSound: function (key, property, value) {
-        
+
         if (this._sounds[key])
         {
             this._sounds[key][property] = value;
@@ -433,7 +566,122 @@ Phaser.Cache.prototype = {
     },
 
     /**
-    * Checks if an image key exists.
+    * Get a BitmapFont object from the cache by its key.
+    *
+    * @method Phaser.Cache#getBitmapFont
+    * @param {string} key - Asset key of the BitmapFont object to retrieve from the Cache.
+    * @return {Phaser.BitmapFont} The requested BitmapFont object if found, or null if not.
+    */
+    getBitmapFont: function (key) {
+
+        if (this._bitmapFont[key])
+        {
+            return this._bitmapFont[key];
+        }
+        else
+        {
+            console.warn('Phaser.Cache.getBitmapFont: Invalid key: "' + key + '"');
+        }
+
+    },
+
+    /**
+    * Get a physics data object from the cache by its key. You can get either the entire data set, a single object or a single fixture of an object from it.
+    *
+    * @method Phaser.Cache#getPhysicsData
+    * @param {string} key - Asset key of the physics data object to retrieve from the Cache.
+    * @param {string} [object=null] - If specified it will return just the physics object that is part of the given key, if null it will return them all.
+    * @param {string} fixtureKey - Fixture key of fixture inside an object. This key can be set per fixture with the Phaser Exporter.
+    * @return {object} The requested physics object data if found.
+    */
+    getPhysicsData: function (key, object, fixtureKey) {
+
+        if (typeof object === 'undefined' || object === null)
+        {
+            //  Get 'em all
+            if (this._physics[key])
+            {
+                return this._physics[key].data;
+            }
+            else
+            {
+                console.warn('Phaser.Cache.getPhysicsData: Invalid key: "' + key + '"');
+            }
+        }
+        else
+        {
+            if (this._physics[key] && this._physics[key].data[object])
+            {
+                var fixtures = this._physics[key].data[object];
+
+                //try to find a fixture by it's fixture key if given
+                if (fixtures && fixtureKey)
+                {
+                    for (var fixture in fixtures)
+                    {
+                        //  This contains the fixture data of a polygon or a circle
+                        fixture = fixtures[fixture];
+
+                        //  Test the key
+                        if (fixture.fixtureKey === fixtureKey)
+                        {
+                            return fixture;
+                        }
+
+                    }
+                    
+                    //  We did not find the requested fixture
+                    console.warn('Phaser.Cache.getPhysicsData: Could not find given fixtureKey: "' + fixtureKey + ' in ' + key + '"');
+                }
+                else
+                {
+                    return fixtures;
+                }
+            }
+            else
+            {
+                console.warn('Phaser.Cache.getPhysicsData: Invalid key/object: "' + key + ' / ' + object + '"');
+            }
+        }
+
+        return null;
+
+    },
+
+    /**
+    * Checks if a key for the given cache object type exists.
+    *
+    * @method Phaser.Cache#checkKey
+    * @param {number} type - The Cache type to check against. I.e. Phaser.Cache.CANVAS, Phaser.Cache.IMAGE, Phaser.Cache.JSON, etc.
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkKey: function (type, key) {
+
+        if (this._cacheMap[type][key])
+        {
+            return true;
+        }
+
+        return false;
+
+    },
+
+    /**
+    * Checks if the given key exists in the Canvas Cache.
+    *
+    * @method Phaser.Cache#checkCanvasKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkCanvasKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.CANVAS, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the Image Cache. Note that this also includes Texture Atlases, Sprite Sheets and Retro Fonts.
     *
     * @method Phaser.Cache#checkImageKey
     * @param {string} key - Asset key of the image to check is in the Cache.
@@ -441,12 +689,124 @@ Phaser.Cache.prototype = {
     */
     checkImageKey: function (key) {
 
-        if (this._images[key])
-        {
-            return true;
-        }
+        return this.checkKey(Phaser.Cache.IMAGE, key);
 
-        return false;
+    },
+
+    /**
+    * Checks if the given key exists in the Texture Cache.
+    *
+    * @method Phaser.Cache#checkTextureKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkTextureKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.TEXTURE, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the Sound Cache.
+    *
+    * @method Phaser.Cache#checkSoundKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkSoundKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.SOUND, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the Text Cache.
+    *
+    * @method Phaser.Cache#checkTextKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkTextKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.TEXT, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the Physics Cache.
+    *
+    * @method Phaser.Cache#checkPhysicsKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkPhysicsKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.PHYSICS, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the Tilemap Cache.
+    *
+    * @method Phaser.Cache#checkTilemapKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkTilemapKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.TILEMAP, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the Binary Cache.
+    *
+    * @method Phaser.Cache#checkBinaryKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkBinaryKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.BINARY, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the BitmapData Cache.
+    *
+    * @method Phaser.Cache#checkBitmapDataKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkBitmapDataKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.BITMAPDATA, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the BitmapFont Cache.
+    *
+    * @method Phaser.Cache#checkBitmapFontKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkBitmapFontKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.BITMAPFONT, key);
+
+    },
+
+    /**
+    * Checks if the given key exists in the JSON Cache.
+    *
+    * @method Phaser.Cache#checkJSONKey
+    * @param {string} key - Asset key of the image to check is in the Cache.
+    * @return {boolean} True if the key exists, otherwise false.
+    */
+    checkJSONKey: function (key) {
+
+        return this.checkKey(Phaser.Cache.JSON, key);
 
     },
 
@@ -505,6 +865,23 @@ Phaser.Cache.prototype = {
         }
 
         return null;
+    },
+
+    /**
+    * Replaces a set of frameData with a new Phaser.FrameData object.
+    *
+    * @method Phaser.Cache#updateFrameData
+    * @param {string} key - The unique key by which you will reference this object.
+    * @param {number} frameData - The new FrameData.
+    */
+    updateFrameData: function (key, frameData) {
+
+        if (this._images[key])
+        {
+            this._images[key].spriteSheet = true;
+            this._images[key].frameData = frameData;
+        }
+
     },
 
     /**
@@ -699,7 +1076,27 @@ Phaser.Cache.prototype = {
         {
             console.warn('Phaser.Cache.getText: Invalid key: "' + key + '"');
         }
-        
+
+    },
+
+    /**
+    * Get a JSON object by key from the cache.
+    *
+    * @method Phaser.Cache#getJSON
+    * @param {string} key - Asset key of the json object to retrieve from the Cache.
+    * @return {object} The JSON object.
+    */
+    getJSON: function (key) {
+
+        if (this._json[key])
+        {
+            return this._json[key].data;
+        }
+        else
+        {
+            console.warn('Phaser.Cache.getJSON: Invalid key: "' + key + '"');
+        }
+
     },
 
     /**
@@ -719,18 +1116,71 @@ Phaser.Cache.prototype = {
         {
             console.warn('Phaser.Cache.getBinary: Invalid key: "' + key + '"');
         }
-        
+
     },
 
     /**
-    * Get the cache keys from a given array of objects.
-    * Normally you don't call this directly but instead use getImageKeys, getSoundKeys, etc.
+    * Gets all keys used by the Cache for the given data type.
     *
     * @method Phaser.Cache#getKeys
-    * @param {Array} array - An array of items to return the keys for.
+    * @param {number} [type=Phaser.Cache.IMAGE] - The type of Cache keys you wish to get. Can be Cache.CANVAS, Cache.IMAGE, Cache.SOUND, etc.
     * @return {Array} The array of item keys.
     */
-    getKeys: function (array) {
+    getKeys: function (type) {
+
+        var array = null;
+
+        switch (type)
+        {
+            case Phaser.Cache.CANVAS:
+                array = this._canvases;
+                break;
+
+            case Phaser.Cache.IMAGE:
+                array = this._images;
+                break;
+
+            case Phaser.Cache.TEXTURE:
+                array = this._textures;
+                break;
+
+            case Phaser.Cache.SOUND:
+                array = this._sounds;
+                break;
+
+            case Phaser.Cache.TEXT:
+                array = this._text;
+                break;
+
+            case Phaser.Cache.PHYSICS:
+                array = this._physics;
+                break;
+
+            case Phaser.Cache.TILEMAP:
+                array = this._tilemaps;
+                break;
+
+            case Phaser.Cache.BINARY:
+                array = this._binary;
+                break;
+
+            case Phaser.Cache.BITMAPDATA:
+                array = this._bitmapDatas;
+                break;
+
+            case Phaser.Cache.BITMAPFONT:
+                array = this._bitmapFont;
+                break;
+
+            case Phaser.Cache.JSON:
+                array = this._json;
+                break;
+        }
+
+        if (!array)
+        {
+            return;
+        }
 
         var output = [];
 
@@ -744,36 +1194,6 @@ Phaser.Cache.prototype = {
 
         return output;
 
-    },
-
-    /**
-    * Returns an array containing all of the keys of Images in the Cache.
-    *
-    * @method Phaser.Cache#getImageKeys
-    * @return {Array} The string based keys in the Cache.
-    */
-    getImageKeys: function () {
-        return this.getKeys(this._images);
-    },
-
-    /**
-    * Returns an array containing all of the keys of Sounds in the Cache.
-    *
-    * @method Phaser.Cache#getSoundKeys
-    * @return {Array} The string based keys in the Cache.
-    */
-    getSoundKeys: function () {
-        return this.getKeys(this._sounds);
-    },
-
-    /**
-    * Returns an array containing all of the keys of Text Files in the Cache.
-    *
-    * @method Phaser.Cache#getTextKeys
-    * @return {Array} The string based keys in the Cache.
-    */
-    getTextKeys: function () {
-        return this.getKeys(this._text);
     },
 
     /**
@@ -817,6 +1237,66 @@ Phaser.Cache.prototype = {
     },
 
     /**
+    * Removes a json object from the cache.
+    *
+    * @method Phaser.Cache#removeJSON
+    * @param {string} key - Key of the asset you want to remove.
+    */
+    removeJSON: function (key) {
+        delete this._json[key];
+    },
+
+    /**
+    * Removes a physics data file from the cache.
+    *
+    * @method Phaser.Cache#removePhysics
+    * @param {string} key - Key of the asset you want to remove.
+    */
+    removePhysics: function (key) {
+        delete this._physics[key];
+    },
+
+    /**
+    * Removes a tilemap from the cache.
+    *
+    * @method Phaser.Cache#removeTilemap
+    * @param {string} key - Key of the asset you want to remove.
+    */
+    removeTilemap: function (key) {
+        delete this._tilemaps[key];
+    },
+
+    /**
+    * Removes a binary file from the cache.
+    *
+    * @method Phaser.Cache#removeBinary
+    * @param {string} key - Key of the asset you want to remove.
+    */
+    removeBinary: function (key) {
+        delete this._binary[key];
+    },
+
+    /**
+    * Removes a bitmap data from the cache.
+    *
+    * @method Phaser.Cache#removeBitmapData
+    * @param {string} key - Key of the asset you want to remove.
+    */
+    removeBitmapData: function (key) {
+        delete this._bitmapDatas[key];
+    },
+
+    /**
+    * Removes a bitmap font from the cache.
+    *
+    * @method Phaser.Cache#removeBitmapFont
+    * @param {string} key - Key of the asset you want to remove.
+    */
+    removeBitmapFont: function (key) {
+        delete this._bitmapFont[key];
+    },
+
+    /**
     * Clears the cache. Removes every local cache object reference.
     *
     * @method Phaser.Cache#destroy
@@ -825,23 +1305,62 @@ Phaser.Cache.prototype = {
 
         for (var item in this._canvases)
         {
-            delete this._canvases[item['key']];
+            delete this._canvases[item];
         }
 
         for (var item in this._images)
         {
-            delete this._images[item['key']];
+            if (item !== '__default' && item !== '__missing')
+            {
+                delete this._images[item];
+            }
         }
 
         for (var item in this._sounds)
         {
-            delete this._sounds[item['key']];
+            delete this._sounds[item];
         }
 
         for (var item in this._text)
         {
-            delete this._text[item['key']];
+            delete this._text[item];
         }
+
+        for (var item in this._json)
+        {
+            delete this._json[item];
+        }
+
+        for (var item in this._textures)
+        {
+            delete this._textures[item];
+        }
+
+        for (var item in this._physics)
+        {
+            delete this._physics[item];
+        }
+
+        for (var item in this._tilemaps)
+        {
+            delete this._tilemaps[item];
+        }
+
+        for (var item in this._binary)
+        {
+            delete this._binary[item];
+        }
+
+        for (var item in this._bitmapDatas)
+        {
+            delete this._bitmapDatas[item];
+        }
+
+        for (var item in this._bitmapFont)
+        {
+            delete this._bitmapFont[item];
+        }
+
     }
 
 };

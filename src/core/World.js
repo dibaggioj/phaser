@@ -34,11 +34,6 @@ Phaser.World = function (game) {
     */
     this.camera = null;
 
-    /**
-    * @property {number} currentRenderOrderID - Reset each frame, keeps a count of the total number of objects updated.
-    */
-    this.currentRenderOrderID = 0;
-    
 };
 
 Phaser.World.prototype = Object.create(Phaser.Group.prototype);
@@ -54,128 +49,15 @@ Phaser.World.prototype.boot = function () {
 
     this.camera = new Phaser.Camera(this.game, 0, 0, 0, this.game.width, this.game.height);
 
-    this.camera.displayObject = this._container;
+    this.camera.displayObject = this;
+
+    this.camera.scale = this.scale;
 
     this.game.camera = this.camera;
 
-}
+    this.game.stage.addChild(this);
 
-/**
-* This is called automatically after the plugins preUpdate and before the State.update.
-* Most objects have preUpdate methods and it's where initial movement, drawing and calculations are done.
-* 
-* @method Phaser.World#preUpdate
-*/
-Phaser.World.prototype.preUpdate = function () {
-    
-    if (this.game.stage._stage.first._iNext)
-    {
-        var currentNode = this.game.stage._stage.first._iNext;
-        
-        do
-        {
-            // If preUpdate exists, and it returns false, skip PIXI child objects
-            if (currentNode['preUpdate'] && !currentNode.preUpdate())
-            {
-                currentNode = currentNode.last._iNext;
-            }
-            else
-            {
-                currentNode = currentNode._iNext;
-            }
-            
-        }
-        while (currentNode != this.game.stage._stage.last._iNext)
-    }
-
-}
-
-/**
-* This is called automatically after the State.update, but before particles or plugins update.
-* Most objects won't have an update method set unless explicitly given one.
-* 
-* @method Phaser.World#update
-*/
-Phaser.World.prototype.update = function () {
-
-    this.currentRenderOrderID = 0;
-    
-    if (this.game.stage._stage.first._iNext)
-    {
-        var currentNode = this.game.stage._stage.first._iNext;
-        
-        do
-        {
-            // If update exists, and it returns false, skip PIXI child objects
-            if (currentNode['update'] && !currentNode.update())
-            {
-                currentNode = currentNode.last._iNext;
-            }
-            else
-            {
-                currentNode = currentNode._iNext;
-            }
-            
-        }
-        while (currentNode != this.game.stage._stage.last._iNext)
-    }
-
-}
-
-/**
-* This is called automatically before the renderer runs and after the plugins have updated.
-* In postUpdate this is where all the final physics calculatations and object positioning happens.
-* The objects are processed in the order of the display list.
-* The only exception to this is if the camera is following an object, in which case that is updated first.
-* 
-* @method Phaser.World#postUpdate
-*/
-Phaser.World.prototype.postUpdate = function () {
-
-    if (this.camera.target && this.camera.target['postUpdate'])
-    {
-        this.camera.target.postUpdate();
-
-        this.camera.update();
-
-        if (this.game.stage._stage.first._iNext)
-        {
-            var currentNode = this.game.stage._stage.first._iNext;
-            
-            do
-            {
-                if (currentNode['postUpdate'] && currentNode !== this.camera.target)
-                {
-                    currentNode.postUpdate();
-                }
-                
-                currentNode = currentNode._iNext;
-            }
-            while (currentNode != this.game.stage._stage.last._iNext)
-        }
-    }
-    else
-    {
-        this.camera.update();
-
-        if (this.game.stage._stage.first._iNext)
-        {
-            var currentNode = this.game.stage._stage.first._iNext;
-            
-            do
-            {
-                if (currentNode['postUpdate'])
-                {
-                    currentNode.postUpdate();
-                }
-                
-                currentNode = currentNode._iNext;
-            }
-            while (currentNode != this.game.stage._stage.last._iNext)
-        }
-    }
-
-}
+};
 
 /**
 * Updates the size of this world. Note that this doesn't modify the world x/y coordinates, just the width and height.
@@ -208,22 +90,78 @@ Phaser.World.prototype.setBounds = function (x, y, width, height) {
 
     this.game.physics.setBoundsToWorld();
 
-}
+};
 
 /**
 * Destroyer of worlds.
-* @method Phaser.World#destroy
+*
+* @method Phaser.World#shutdown
 */
-Phaser.World.prototype.destroy = function () {
+Phaser.World.prototype.shutdown = function () {
 
-    this.camera.x = 0;
-    this.camera.y = 0;
+    //  World is a Group, so run a soft destruction on this and all children.
+    this.destroy(true, true);
 
-    this.game.input.reset(true);
+};
 
-    this.removeAll();
+/**
+* This will take the given game object and check if its x/y coordinates fall outside of the world bounds.
+* If they do it will reposition the object to the opposite side of the world, creating a wrap-around effect.
+*
+* @method Phaser.World#wrap
+* @param {Phaser.Sprite|Phaser.Image|Phaser.TileSprite|Phaser.Text} sprite - The object you wish to wrap around the world bounds.
+* @param {number} [padding=0] - Extra padding added equally to the sprite.x and y coordinates before checking if within the world bounds. Ignored if useBounds is true.
+* @param {boolean} [useBounds=false] - If useBounds is false wrap checks the object.x/y coordinates. If true it does a more accurate bounds check, which is more expensive.
+*/
+Phaser.World.prototype.wrap = function (sprite, padding, useBounds) {
 
-}
+    if (typeof padding === 'undefined') { padding = 0; }
+    if (typeof useBounds === 'undefined') { useBounds = false; }
+
+    if (!useBounds)
+    {
+        if (sprite.x + padding < this.bounds.x)
+        {
+            sprite.x = this.bounds.right + padding;
+        }
+        else if (sprite.x - padding > this.bounds.right)
+        {
+            sprite.x = this.bounds.left - padding;
+        }
+
+        if (sprite.y + padding < this.bounds.top)
+        {
+            sprite.y = this.bounds.bottom + padding;
+        }
+        else if (sprite.y - padding > this.bounds.bottom)
+        {
+            sprite.y = this.bounds.top - padding;
+        }
+    }
+    else
+    {
+        sprite.getBounds();
+
+        if (sprite._currentBounds.right < this.bounds.x)
+        {
+            sprite.x = this.bounds.right;
+        }
+        else if (sprite._currentBounds.x > this.bounds.right)
+        {
+            sprite.x = this.bounds.left;
+        }
+
+        if (sprite._currentBounds.bottom < this.bounds.top)
+        {
+            sprite.y = this.bounds.bottom;
+        }
+        else if (sprite._currentBounds.top > this.bounds.bottom)
+        {
+            sprite.y = this.bounds.top;
+        }
+    }
+
+};
 
 /**
 * @name Phaser.World#width
@@ -323,22 +261,6 @@ Object.defineProperty(Phaser.World.prototype, "randomY", {
             return this.game.rnd.integerInRange(this.bounds.y, this.bounds.height);
         }
 
-    }
-
-});
-
-/**
-* @name Phaser.World#visible
-* @property {boolean} visible - Gets or sets the visible state of the World.
-*/
-Object.defineProperty(Phaser.World.prototype, "visible", {
-
-    get: function () {
-        return this._container.visible;
-    },
-
-    set: function (value) {
-        this._container.visible = value;
     }
 
 });
